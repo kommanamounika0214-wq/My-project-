@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Time Table Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth;
+        }
+        .timetable-table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+            min-width: 800px;
+        }
+        .timetable-table th, .timetable-table td {
+            border: 1px solid #e2e8f0;
+            text-align: center;
+            padding: 4px;
+            font-size: 11px;
+            height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+        }
+        .timetable-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+        }
+        .subject-cell { background-color: #e0f2fe; }
+        .lab-cell { background-color: #dcfce7; }
+        .library-cell { background-color: #fef9c3; }
+        .sports-cell { background-color: #fee2e2; }
+        .lunch-cell { background-color: #f3f4f6; font-weight: 600; }
+        .clash-cell { background-color: #fecaca; font-weight: bold; }
+        .blocked-cell { background-color: #e5e7eb; color: #6b7280; }
+
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Smart Time Table Generator</h1>
+            <p class="text-slate-600 mt-2">Define your institution's constraints and generate an optimized weekly schedule.</p>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Inputs Column -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Faculty Input -->
+                <div class="bg-white p-6 rounded-xl shadow-sm">
+                    <h2 class="text-xl font-semibold mb-4">1. Add Faculty</h2>
+                    <div class="flex gap-2">
+                        <input type="text" id="faculty-name" placeholder="e.g., Dr. Smith" class="flex-grow p-2 border rounded-md focus:ring-2 focus:ring-blue-500">
+                        <button onclick="addFaculty()" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">Add</button>
+                    </div>
+                    <ul id="faculty-list" class="mt-4 space-y-2"></ul>
+                </div>
+
+                <!-- Rooms Input -->
+                <div class="bg-white p-6 rounded-xl shadow-sm">
+                    <h2 class="text-xl font-semibold mb-4">2. Add Rooms (Classrooms/Labs)</h2>
+                    <div class="flex gap-2">
+                        <input type="text" id="room-name" placeholder="e.g., C-101 or Physics Lab" class="flex-grow p-2 border rounded-md focus:ring-2 focus:ring-blue-500">
+                        <button onclick="addRoom()" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">Add</button>
+                    </div>
+                    <ul id="room-list" class="mt-4 space-y-2"></ul>
+                </div>
+
+                <!-- Sections Input -->
+                <div class="bg-white p-6 rounded-xl shadow-sm">
+                    <h2 class="text-xl font-semibold mb-4">3. Add Sections & Subjects</h2>
+                    <div class="bg-slate-50 p-4 rounded-lg">
+                        <h3 class="font-medium mb-2">New Section</h3>
+                        <input type="text" id="section-name" placeholder="e.g., CSE-A" class="w-full p-2 border rounded-md mb-2 focus:ring-2 focus:ring-blue-500">
+                        <button onclick="addSection()" class="w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition">Add Section</button>
+                    </div>
+                    <div id="sections-container" class="mt-4 space-y-4"></div>
+                </div>
+
+                <!-- Constraints Input -->
+                <div class="bg-white p-6 rounded-xl shadow-sm">
+                    <h2 class="text-xl font-semibold mb-4">4. Set Pre-Engaged Slots</h2>
+                    <!-- Faculty Constraints -->
+                    <div class="bg-slate-50 p-4 rounded-lg">
+                        <h3 class="font-medium mb-2">Faculty Unavailable Slots</h3>
+                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <select id="constraint-faculty" class="p-2 border rounded-md faculty-dropdown col-span-2"><option value="">Select Faculty</option></select>
+                            <select id="constraint-day" class="p-2 border rounded-md"><option value="">Select Day</option></select>
+                            <select id="constraint-period" class="p-2 border rounded-md"><option value="">Select Period</option></select>
+                        </div>
+                        <button onclick="addFacultyConstraint()" class="w-full mt-2 bg-amber-500 text-white p-2 rounded-md hover:bg-amber-600 transition">Block Slot</button>
+                        <ul id="faculty-constraint-list" class="mt-3 space-y-1 text-sm"></ul>
+                    </div>
+                </div>
+
+
+                <div class="sticky bottom-4">
+                     <button onclick="generateTimetable()" class="w-full bg-indigo-600 text-white px-6 py-4 rounded-xl shadow-lg hover:bg-indigo-700 transition transform hover:scale-105 text-lg font-bold">
+                        Generate Timetable
+                    </button>
+                </div>
+            </div>
+
+            <!-- Timetable Output Column -->
+            <div id="output-container" class="lg:col-span-2 space-y-8">
+                 <div id="placeholder" class="text-center py-20 bg-white rounded-xl shadow-sm">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No Timetable Generated</h3>
+                    <p class="mt-1 text-sm text-gray-500">Fill in the details and click "Generate" to see the results.</p>
+                </div>
+                <!-- Timetables will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA STORAGE ---
+        let faculty = ['Librarian', 'Sports Instructor'];
+        let rooms = ['Library', 'Sports Ground'];
+        let sections = [];
+        let facultyConstraints = [];
+        let nextId = 0;
+
+        // --- CONSTANTS ---
+        const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const PERIODS = 8;
+        const LUNCH_PERIOD = 3; // 4th period, index 3
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            populateTimeDropdowns();
+            renderFaculty();
+            renderRooms();
+        });
+
+        function populateTimeDropdowns() {
+            const dayDropdown = document.getElementById('constraint-day');
+            const periodDropdown = document.getElementById('constraint-period');
+            dayDropdown.innerHTML = '<option value="">Select Day</option>' + DAYS.map((day, i) => `<option value="${i}">${day}</option>`).join('');
+            periodDropdown.innerHTML = '<option value="">Select Period</option>' + Array.from({length: PERIODS}, (_, i) => i === LUNCH_PERIOD ? '' : `<option value="${i}">Period ${i+1}</option>`).join('');
+        }
+
+        // --- DOM MANIPULATION FUNCTIONS ---
+
+        function addFaculty() {
+            const input = document.getElementById('faculty-name');
+            const name = input.value.trim();
+            if (name && !faculty.find(f => f.toLowerCase() === name.toLowerCase())) {
+                faculty.push(name);
+                faculty.sort();
+                input.value = '';
+                renderFaculty();
+                updateAllFacultyDropdowns();
+            }
+        }
+
+        function renderFaculty() {
+            document.getElementById('faculty-list').innerHTML = faculty
+                .filter(f => !['Librarian', 'Sports Instructor'].includes(f))
+                .map(f => `<li class="flex justify-between items-center bg-slate-100 p-2 rounded-md"><span>${f}</span><button class="text-red-500 text-xs font-semibold" onclick="removeFaculty('${f}')">REMOVE</button></li>`).join('');
+        }
+
+        function removeFaculty(name) {
+            faculty = faculty.filter(f => f !== name);
+            facultyConstraints = facultyConstraints.filter(c => c.faculty !== name);
+            renderFaculty();
+            updateAllFacultyDropdowns();
+            renderFacultyConstraints();
+        }
+        
+        function addRoom() {
+            const input = document.getElementById('room-name');
+            const name = input.value.trim();
+            if (name && !rooms.find(r => r.toLowerCase() === name.toLowerCase())) {
+                rooms.push(name);
+                rooms.sort();
+                input.value = '';
+                renderRooms();
+                updateAllRoomDropdowns();
+            }
+        }
+        
+        function renderRooms() {
+             document.getElementById('room-list').innerHTML = rooms
+                .filter(r => !['Library', 'Sports Ground'].includes(r))
+                .map(r => `<li class="flex justify-between items-center bg-slate-100 p-2 rounded-md"><span>${r}</span><button class="text-red-500 text-xs font-semibold" onclick="removeRoom('${r}')">REMOVE</button></li>`).join('');
+        }
+
+        function removeRoom(name) {
+            rooms = rooms.filter(r => r !== name);
+            renderRooms();
+            updateAllRoomDropdowns();
+        }
+
+        function addSection() {
+            const input = document.getElementById('section-name');
+            const name = input.value.trim();
+            if (name && !sections.find(s => s.name === name)) {
+                sections.push({ id: nextId++, name, subjects: [] });
+                input.value = '';
+                renderSections();
+            }
+        }
+        
+        function toggleLabDuration(sectionId) {
+            const isLabCheckbox = document.getElementById(`is-lab-${sectionId}`);
+            const durationContainer = document.getElementById(`lab-duration-container-${sectionId}`);
+            const hoursInput = document.getElementById(`subject-hours-${sectionId}`);
+            
+            if (isLabCheckbox.checked) {
+                durationContainer.style.display = 'block';
+                hoursInput.disabled = true;
+                hoursInput.value = ''; 
+            } else {
+                durationContainer.style.display = 'none';
+                hoursInput.disabled = false;
+            }
+        }
+
+        function renderSections() {
+            const container = document.getElementById('sections-container');
+            container.innerHTML = sections.map(section => `
+                <div class="border p-4 rounded-lg bg-white" id="section-${section.id}">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">${section.name}</h3>
+                        <button class="text-red-500 font-medium" onclick="removeSection(${section.id})">Remove Section</button>
+                    </div>
+                    <div id="subjects-${section.id}" class="space-y-2 mb-4">${renderSubjectsForSection(section)}</div>
+                    <div class="bg-blue-50 p-3 rounded-lg">
+                        <h4 class="font-medium mb-2 text-blue-800">Add Subject/Lab to ${section.name}</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input type="text" id="subject-name-${section.id}" placeholder="Subject Name" class="p-2 border rounded-md">
+                            <input type="number" id="subject-hours-${section.id}" placeholder="Hours/Week" class="p-2 border rounded-md" min="1" value="1">
+                            <select id="subject-faculty-${section.id}" class="p-2 border rounded-md faculty-dropdown"><option value="">Select Faculty</option></select>
+                            <select id="subject-room-${section.id}" class="p-2 border rounded-md room-dropdown"><option value="">Select Room</option></select>
+                            <div class="col-span-2 flex items-center gap-4">
+                               <input type="checkbox" id="is-lab-${section.id}" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" onchange="toggleLabDuration(${section.id})">
+                               <label for="is-lab-${section.id}">This is a Lab</label>
+                            </div>
+                            <div id="lab-duration-container-${section.id}" class="col-span-2" style="display:none;">
+                                <label for="lab-duration-${section.id}" class="text-sm font-medium">Lab Duration (consecutive hours)</label>
+                                <select id="lab-duration-${section.id}" class="w-full p-2 border rounded-md">
+                                    <option value="2">2 hours</option>
+                                    <option value="3">3 hours</option>
+                                </select>
+                            </div>
+                            <button onclick="addSubject(${section.id})" class="sm:col-span-2 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition">Add Subject</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            updateAllFacultyDropdowns();
+            updateAllRoomDropdowns();
+        }
+        
+        function removeSection(id) {
+            sections = sections.filter(s => s.id !== id);
+            renderSections();
+        }
+        
+        function addSubject(sectionId) {
+            const section = sections.find(s => s.id === sectionId);
+            const name = document.getElementById(`subject-name-${sectionId}`).value.trim();
+            const facultyName = document.getElementById(`subject-faculty-${sectionId}`).value;
+            const roomName = document.getElementById(`subject-room-${sectionId}`).value;
+            const isLab = document.getElementById(`is-lab-${sectionId}`).checked;
+            
+            let hours;
+            if (isLab) {
+                hours = parseInt(document.getElementById(`lab-duration-${sectionId}`).value, 10);
+            } else {
+                hours = parseInt(document.getElementById(`subject-hours-${sectionId}`).value, 10);
+            }
+
+            if (name && hours > 0 && facultyName && roomName) {
+                section.subjects.push({ name, hours, faculty: facultyName, room: roomName, isLab });
+                document.getElementById(`subjects-${sectionId}`).innerHTML = renderSubjectsForSection(section);
+                ['subject-name', 'subject-hours', 'subject-faculty', 'subject-room'].forEach(id => document.getElementById(`${id}-${sectionId}`).value = '');
+                document.getElementById(`is-lab-${sectionId}`).checked = false;
+                toggleLabDuration(sectionId);
+            } else {
+                alert("Please fill all subject details, including faculty and room.");
+            }
+        }
+
+        function renderSubjectsForSection(section) {
+            return section.subjects.map((sub, index) => `
+                <div class="grid grid-cols-3 items-center text-sm bg-slate-50 p-2 rounded-md gap-2">
+                    <span class="col-span-2"><strong>${sub.name}</strong> (${sub.hours}h) - <em>${sub.faculty}</em> [${sub.room}] ${sub.isLab ? '<span class="text-xs bg-green-200 text-green-800 p-1 rounded">LAB</span>' : ''}</span>
+                    <button class="text-red-500 text-xs justify-self-end font-semibold" onclick="removeSubject(${section.id}, ${index})">REMOVE</button>
+                </div>
+            `).join('');
+        }
+
+        function removeSubject(sectionId, subjectIndex) {
+            const section = sections.find(s => s.id === sectionId);
+            section.subjects.splice(subjectIndex, 1);
+            document.getElementById(`subjects-${sectionId}`).innerHTML = renderSubjectsForSection(section);
+        }
+        
+        function addFacultyConstraint() {
+            const facultyName = document.getElementById('constraint-faculty').value;
+            const day = parseInt(document.getElementById('constraint-day').value);
+            const period = parseInt(document.getElementById('constraint-period').value);
+
+            if (facultyName && day >= 0 && period >= 0) {
+                const constraint = { faculty: facultyName, day, period };
+                if (!facultyConstraints.some(c => c.faculty === facultyName && c.day === day && c.period === period)) {
+                    facultyConstraints.push(constraint);
+                    renderFacultyConstraints();
+                }
+            } else {
+                alert('Please select a faculty, day, and period.');
+            }
+        }
+
+        function renderFacultyConstraints() {
+            const list = document.getElementById('faculty-constraint-list');
+            list.innerHTML = facultyConstraints.map((c, i) => `
+                <li class="flex justify-between items-center bg-amber-100 p-1 rounded-md">
+                    <span>${c.faculty} is busy on ${DAYS[c.day]} at Period ${c.period + 1}</span>
+                    <button class="text-red-500 text-xs font-semibold" onclick="removeFacultyConstraint(${i})">X</button>
+                </li>
+            `).join('');
+        }
+
+        function removeFacultyConstraint(index) {
+            facultyConstraints.splice(index, 1);
+            renderFacultyConstraints();
+        }
+
+        function updateAllFacultyDropdowns() {
+            const dropdowns = document.querySelectorAll('.faculty-dropdown');
+            const options = faculty.filter(f => !['Librarian', 'Sports Instructor'].includes(f)).map(f => `<option value="${f}">${f}</option>`).join('');
+            dropdowns.forEach(dropdown => {
+                const selectedValue = dropdown.value;
+                dropdown.innerHTML = '<option value="">Select Faculty</option>' + options;
+                dropdown.value = selectedValue;
+            });
+        }
+        
+        function updateAllRoomDropdowns() {
+            const dropdowns = document.querySelectorAll('.room-dropdown');
+            const options = rooms.filter(r => !['Library', 'Sports Ground'].includes(r)).map(r => `<option value="${r}">${r}</option>`).join('');
+            dropdowns.forEach(dropdown => {
+                const selectedValue = dropdown.value;
+                dropdown.innerHTML = '<option value="">Select Room</option>' + options;
+                dropdown.value = selectedValue;
+            });
+        }
+
+        // --- TIMETABLE GENERATION LOGIC ---
+
+        function generateTimetable() {
+            if (sections.length === 0) {
+                alert("Please add at least one section.");
+                return;
